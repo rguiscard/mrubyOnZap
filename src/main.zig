@@ -1,5 +1,6 @@
 const std = @import("std");
 const mrubyOnZap = @import("mrubyOnZap");
+const c = mrubyOnZap.c;
 const zap = @import("zap");
 
 const Allocator = std.mem.Allocator;
@@ -79,6 +80,13 @@ pub fn main() !void {
     }) = .{};
     defer std.debug.print("\n\nLeaks detected: {}\n\n", .{gpa.deinit() != .ok});
     const allocator = gpa.allocator();
+
+    // run main.rb of mruby first
+    const mrb = c.mrb_open();
+    if (mrb) |m| {
+        _ = c.mrb_load_irep(m, c.rb_main);
+        defer c.mrb_close(m);
+    }
 
     // create an app context
     var my_context = MyContext.init("db connection established!");
