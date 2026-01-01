@@ -1,0 +1,5 @@
+*.o
+*.swp
+zig-out/
+.zig-cache/
+mruby-3.4.0/
