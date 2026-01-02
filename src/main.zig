@@ -114,7 +114,6 @@ pub fn main() !void {
     const mrb = c.mrb_open();
     if (mrb) |m| {
         _ = c.mrb_load_irep(m, c.rb_main);
-        _ = c.mrb_funcall(m, c.mrb_top_self(m), "constants", 0);
         my_context.mrb = m;
         // defer c.mrb_close(m);
     }
