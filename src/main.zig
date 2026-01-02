@@ -6,12 +6,12 @@ const zap = @import("zap");
 const Allocator = std.mem.Allocator;
 
 // The global Application Context
-const MyContext = struct {
-    db_connection: []const u8,
+const MContext = struct {
+    mrb: ?*c.mrb_state,
 
-    pub fn init(connection: []const u8) MyContext {
+    pub fn init() MContext {
         return .{
-            .db_connection = connection,
+            .mrb = null,
         };
     }
 };
@@ -34,24 +34,47 @@ const SimpleEndpoint = struct {
     }
 
     // handle GET requests
-    pub fn get(e: *SimpleEndpoint, arena: Allocator, context: *MyContext, r: zap.Request) !void {
+    pub fn get(e: *SimpleEndpoint, arena: Allocator, context: *MContext, r: zap.Request) !void {
         const thread_id = std.Thread.getCurrentId();
 
         r.setStatus(.ok);
+
+        if (context.mrb) |m| {
+            if (r.path) |path| {
+                const mrb_path = c.mrb_str_new(m, path.ptr, @as(c.mrb_int, @intCast(path.len)));
+                const app = c.mrb_module_get(m, "App");
+                const mrb_result = c.mrb_funcall(m, c.mrb_obj_value(app), "entry_point", 1, mrb_path);
+                // _ = c.mrb_funcall(m, c.mrb_top_self(m), "puts", 1, mrb_result);
+
+                // Convert to NUL-terminated C string
+                const cstr: [*:0]const u8 = c.mrb_str_to_cstr(m, mrb_result);
+
+                // Determine length (safe, no macros)
+                const len: usize = std.mem.len(cstr);
+
+                // Copy into Zig-owned buffer
+                const out = try arena.alloc(u8, len);
+                @memcpy(out, cstr[0..len]);
+
+                try r.sendBody(out);
+                std.Thread.sleep(std.time.ns_per_ms * 300);
+                return;
+            }
+        }
 
         // look, we use the arena allocator here -> no need to free the response_text later!
         // and we also just `try` it, not worrying about errors
         const response_text = try std.fmt.allocPrint(
             arena,
             \\Hello!
-            \\context.db_connection: {s}
             \\endpoint.data: {s}
             \\arena: {}
             \\thread_id: {}
             \\
         ,
-            .{ context.db_connection, e.some_data, arena.ptr, thread_id },
+            .{ e.some_data, arena.ptr, thread_id },
         );
+
         try r.sendBody(response_text);
         std.Thread.sleep(std.time.ns_per_ms * 300);
     }
@@ -61,14 +84,17 @@ const StopEndpoint = struct {
     path: []const u8,
     error_strategy: zap.Endpoint.ErrorStrategy = .log_to_response,
 
-    pub fn get(_: *StopEndpoint, _: Allocator, context: *MyContext, _: zap.Request) !void {
+    pub fn get(_: *StopEndpoint, _: Allocator, my_context: *MContext, _: zap.Request) !void {
         std.debug.print(
             \\Before I stop, let me dump the app context:
-            \\db_connection='{s}'
             \\
             \\
-        , .{context.*.db_connection});
+        , .{});
         zap.stop();
+        if (my_context.mrb) |m| {
+            c.mrb_close(m);
+            my_context.mrb = null;
+        }
     }
 };
 
@@ -81,18 +107,21 @@ pub fn main() !void {
     defer std.debug.print("\n\nLeaks detected: {}\n\n", .{gpa.deinit() != .ok});
     const allocator = gpa.allocator();
 
+    // create an app context
+    var my_context = MContext.init();
+
     // run main.rb of mruby first
     const mrb = c.mrb_open();
     if (mrb) |m| {
         _ = c.mrb_load_irep(m, c.rb_main);
-        defer c.mrb_close(m);
+        _ = c.mrb_funcall(m, c.mrb_top_self(m), "constants", 0);
+        my_context.mrb = m;
+        // defer c.mrb_close(m);
     }
 
-    // create an app context
-    var my_context = MyContext.init("db connection established!");
 
     // create an App instance
-    const App = zap.App.Create(MyContext);
+    const App = zap.App.Create(MContext);
     try App.init(allocator, &my_context, .{});
     defer App.deinit();
 
