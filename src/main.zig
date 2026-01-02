@@ -41,23 +41,23 @@ const SimpleEndpoint = struct {
 
         if (context.mrb) |m| {
             if (r.path) |path| {
-                const mrb_path = c.mrb_str_new(m, path.ptr, @as(c.mrb_int, @intCast(path.len)));
+                const env = c.mrb_hash_new(m);
+                _ = c.mrb_hash_set(m, env, zigStringToRuby(m, "PATH_INFO"),
+                                           zigStringToRuby(m, path));
+                _ = c.mrb_hash_set(m, env, zigStringToRuby(m, "REQUEST_METHOD"),
+                                           zigStringToRuby(m, "get"));
+
                 const app = c.mrb_module_get(m, "App");
-                const mrb_result = c.mrb_funcall(m, c.mrb_obj_value(app), "entry_point", 1, mrb_path);
-                // _ = c.mrb_funcall(m, c.mrb_top_self(m), "puts", 1, mrb_result);
+                const mrb_result = c.mrb_funcall(m, c.mrb_obj_value(app), "entry_point", 1, env);
 
-                // Convert to NUL-terminated C string
-                const cstr: [*:0]const u8 = c.mrb_str_to_cstr(m, mrb_result);
-
-                // Determine length (safe, no macros)
+                const body = c.mrb_ary_ref(m, mrb_result, 2);
+                const cstr: [*:0]const u8 = c.mrb_str_to_cstr(m, body);
                 const len: usize = std.mem.len(cstr);
-
-                // Copy into Zig-owned buffer
                 const out = try arena.alloc(u8, len);
+                defer arena.free(out);
                 @memcpy(out, cstr[0..len]);
 
                 try r.sendBody(out);
-                std.Thread.sleep(std.time.ns_per_ms * 300);
                 return;
             }
         }
@@ -153,4 +153,8 @@ pub fn main() !void {
         .threads = 2,
         .workers = 1,
     });
+}
+
+fn zigStringToRuby(m: *c.mrb_state, txt:[]const u8) c.mrb_value {
+    return c.mrb_str_new(m, txt.ptr, @as(c.mrb_int, @intCast(txt.len)));
 }

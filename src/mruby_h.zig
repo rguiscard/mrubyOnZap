@@ -617,6 +617,7 @@ pub const MRB_TYPEOF_MRB_TT_OBJECT = struct_RObject;
 pub const MRB_TYPEOF_MRB_TT_CLASS = struct_RClass;
 pub const MRB_TYPEOF_MRB_TT_MODULE = struct_RClass;
 pub const MRB_TYPEOF_MRB_TT_SCLASS = struct_RClass;
+// mruby-3.4.0/build/host/include/mruby/object.h:13:18: warning: struct demoted to opaque type - has bitfield
 pub const struct_RHash = opaque {};
 pub const MRB_TYPEOF_MRB_TT_HASH = struct_RHash;
 pub const struct_RData = opaque {};
@@ -627,6 +628,7 @@ pub const MRB_TYPEOF_MRB_TT_ICLASS = struct_RClass;
 // mruby-3.4.0/build/host/include/mruby/object.h:13:18: warning: struct demoted to opaque type - has bitfield
 pub const struct_RProc = opaque {};
 pub const MRB_TYPEOF_MRB_TT_PROC = struct_RProc;
+// mruby-3.4.0/build/host/include/mruby/object.h:13:18: warning: struct demoted to opaque type - has bitfield
 pub const struct_RArray = opaque {};
 pub const MRB_TYPEOF_MRB_TT_ARRAY = struct_RArray;
 // mruby-3.4.0/build/host/include/mruby/object.h:13:18: warning: struct demoted to opaque type - has bitfield
@@ -1545,6 +1547,31 @@ pub extern fn mrb_state_atexit(mrb: ?*mrb_state, func: mrb_atexit_func) void;
 pub extern fn mrb_show_version(mrb: ?*mrb_state) void;
 pub extern fn mrb_show_copyright(mrb: ?*mrb_state) void;
 pub extern fn mrb_format(mrb: ?*mrb_state, format: [*c]const u8, ...) mrb_value;
+pub const struct_mrb_shared_array = extern struct {
+    refcnt: c_int = @import("std").mem.zeroes(c_int),
+    len: mrb_ssize = @import("std").mem.zeroes(mrb_ssize),
+    ptr: [*c]mrb_value = @import("std").mem.zeroes([*c]mrb_value),
+};
+pub const mrb_shared_array = struct_mrb_shared_array;
+// mruby-3.4.0/build/host/include/mruby.h:83:39: warning: ignoring StaticAssert declaration
+pub extern fn mrb_ary_modify(?*mrb_state, ?*struct_RArray) void;
+pub extern fn mrb_ary_new_capa(?*mrb_state, mrb_int) mrb_value;
+pub extern fn mrb_ary_new(mrb: ?*mrb_state) mrb_value;
+pub extern fn mrb_ary_new_from_values(mrb: ?*mrb_state, size: mrb_int, vals: [*c]const mrb_value) mrb_value;
+pub extern fn mrb_assoc_new(mrb: ?*mrb_state, car: mrb_value, cdr: mrb_value) mrb_value;
+pub extern fn mrb_ary_concat(mrb: ?*mrb_state, self: mrb_value, other: mrb_value) void;
+pub extern fn mrb_ary_splat(mrb: ?*mrb_state, value: mrb_value) mrb_value;
+pub extern fn mrb_ary_push(mrb: ?*mrb_state, array: mrb_value, value: mrb_value) void;
+pub extern fn mrb_ary_pop(mrb: ?*mrb_state, ary: mrb_value) mrb_value;
+pub extern fn mrb_ary_set(mrb: ?*mrb_state, ary: mrb_value, n: mrb_int, val: mrb_value) void;
+pub extern fn mrb_ary_replace(mrb: ?*mrb_state, self: mrb_value, other: mrb_value) void;
+pub extern fn mrb_ary_unshift(mrb: ?*mrb_state, self: mrb_value, item: mrb_value) mrb_value;
+pub extern fn mrb_ary_entry(ary: mrb_value, offset: mrb_int) mrb_value;
+pub extern fn mrb_ary_splice(mrb: ?*mrb_state, self: mrb_value, head: mrb_int, len: mrb_int, rpl: mrb_value) mrb_value;
+pub extern fn mrb_ary_shift(mrb: ?*mrb_state, self: mrb_value) mrb_value;
+pub extern fn mrb_ary_clear(mrb: ?*mrb_state, self: mrb_value) mrb_value;
+pub extern fn mrb_ary_join(mrb: ?*mrb_state, ary: mrb_value, sep: mrb_value) mrb_value;
+pub extern fn mrb_ary_resize(mrb: ?*mrb_state, ary: mrb_value, new_len: mrb_int) mrb_value;
 pub const struct_mrb_mempool = opaque {};
 pub const mrb_mempool = struct_mrb_mempool;
 pub extern fn mrb_mempool_open(?*mrb_state) ?*struct_mrb_mempool;
@@ -1650,6 +1677,22 @@ pub const struct_mrb_insn_data = extern struct {
 pub extern fn mrb_irep_incref(?*mrb_state, [*c]struct_mrb_irep) void;
 pub extern fn mrb_irep_decref(?*mrb_state, [*c]struct_mrb_irep) void;
 pub extern fn mrb_irep_cutref(?*mrb_state, [*c]struct_mrb_irep) void;
+pub extern fn mrb_hash_new_capa(mrb: ?*mrb_state, capa: mrb_int) mrb_value;
+pub extern fn mrb_hash_new(mrb: ?*mrb_state) mrb_value;
+pub extern fn mrb_hash_set(mrb: ?*mrb_state, hash: mrb_value, key: mrb_value, val: mrb_value) void;
+pub extern fn mrb_hash_get(mrb: ?*mrb_state, hash: mrb_value, key: mrb_value) mrb_value;
+pub extern fn mrb_hash_fetch(mrb: ?*mrb_state, hash: mrb_value, key: mrb_value, def: mrb_value) mrb_value;
+pub extern fn mrb_hash_delete_key(mrb: ?*mrb_state, hash: mrb_value, key: mrb_value) mrb_value;
+pub extern fn mrb_hash_keys(mrb: ?*mrb_state, hash: mrb_value) mrb_value;
+pub extern fn mrb_hash_key_p(mrb: ?*mrb_state, hash: mrb_value, key: mrb_value) mrb_bool;
+pub extern fn mrb_hash_empty_p(mrb: ?*mrb_state, self: mrb_value) mrb_bool;
+pub extern fn mrb_hash_values(mrb: ?*mrb_state, hash: mrb_value) mrb_value;
+pub extern fn mrb_hash_clear(mrb: ?*mrb_state, hash: mrb_value) mrb_value;
+pub extern fn mrb_hash_size(mrb: ?*mrb_state, hash: mrb_value) mrb_int;
+pub extern fn mrb_hash_dup(mrb: ?*mrb_state, hash: mrb_value) mrb_value;
+pub extern fn mrb_hash_merge(mrb: ?*mrb_state, hash1: mrb_value, hash2: mrb_value) void;
+pub const mrb_hash_foreach_func = fn (?*mrb_state, mrb_value, mrb_value, ?*anyopaque) callconv(.c) c_int;
+pub extern fn mrb_hash_foreach(mrb: ?*mrb_state, hash: ?*struct_RHash, func: ?*const mrb_hash_foreach_func, p: ?*anyopaque) void;
 pub extern fn memcpy(__dest: ?*anyopaque, __src: ?*const anyopaque, __n: c_ulong) ?*anyopaque;
 pub extern fn memmove(__dest: ?*anyopaque, __src: ?*const anyopaque, __n: c_ulong) ?*anyopaque;
 pub extern fn memccpy(__dest: ?*anyopaque, __src: ?*const anyopaque, __c: c_int, __n: c_ulong) ?*anyopaque;
@@ -4254,6 +4297,74 @@ pub inline fn mrb_int_hash_func(mrb: anytype, key: anytype) u32 {
     _ = &key;
     return @import("std").zig.c_translation.cast(u32, (key ^ (key << @as(c_int, 2))) ^ (key >> @as(c_int, 2)));
 }
+pub const MRUBY_ARRAY_H = "";
+pub const MRB_ARY_EMBED_LEN_MAX = @import("std").zig.c_translation.cast(mrb_int, @import("std").zig.c_translation.MacroArithmetic.div(@import("std").zig.c_translation.sizeof(?*anyopaque) * @as(c_int, 3), @import("std").zig.c_translation.sizeof(mrb_value)));
+pub inline fn mrb_ary_ptr(v: anytype) [*c]struct_RArray {
+    _ = &v;
+    return @import("std").zig.c_translation.cast([*c]struct_RArray, mrb_ptr(v));
+}
+pub inline fn mrb_ary_value(p: anytype) @TypeOf(mrb_obj_value(@import("std").zig.c_translation.cast(?*anyopaque, p))) {
+    _ = &p;
+    return mrb_obj_value(@import("std").zig.c_translation.cast(?*anyopaque, p));
+}
+pub inline fn RARRAY(v: anytype) [*c]struct_RArray {
+    _ = &v;
+    return @import("std").zig.c_translation.cast([*c]struct_RArray, mrb_ptr(v));
+}
+pub const MRB_ARY_EMBED_MASK = @as(c_int, 7);
+pub inline fn ARY_EMBED_P(a: anytype) @TypeOf(a.*.flags & MRB_ARY_EMBED_MASK) {
+    _ = &a;
+    return a.*.flags & MRB_ARY_EMBED_MASK;
+}
+pub const ARY_UNSET_EMBED_FLAG = @compileError("unable to translate C expr: expected ')' instead got '&='");
+// mruby-3.4.0/build/host/include/mruby/array.h:64:9
+pub inline fn ARY_EMBED_LEN(a: anytype) mrb_int {
+    _ = &a;
+    return @import("std").zig.c_translation.cast(mrb_int, (a.*.flags & MRB_ARY_EMBED_MASK) - @as(c_int, 1));
+}
+pub const ARY_SET_EMBED_LEN = @compileError("unable to translate C expr: expected ')' instead got '='");
+// mruby-3.4.0/build/host/include/mruby/array.h:66:9
+pub inline fn ARY_EMBED_PTR(a: anytype) @TypeOf(a.*.as.ary) {
+    _ = &a;
+    return a.*.as.ary;
+}
+pub inline fn ARY_LEN(a: anytype) @TypeOf(if (ARY_EMBED_P(a) != 0) ARY_EMBED_LEN(a) else @import("std").zig.c_translation.cast(mrb_int, a.*.as.heap.len)) {
+    _ = &a;
+    return if (ARY_EMBED_P(a) != 0) ARY_EMBED_LEN(a) else @import("std").zig.c_translation.cast(mrb_int, a.*.as.heap.len);
+}
+pub inline fn ARY_PTR(a: anytype) @TypeOf(if (ARY_EMBED_P(a) != 0) ARY_EMBED_PTR(a) else a.*.as.heap.ptr) {
+    _ = &a;
+    return if (ARY_EMBED_P(a) != 0) ARY_EMBED_PTR(a) else a.*.as.heap.ptr;
+}
+pub inline fn RARRAY_LEN(a: anytype) @TypeOf(ARY_LEN(RARRAY(a))) {
+    _ = &a;
+    return ARY_LEN(RARRAY(a));
+}
+pub inline fn RARRAY_PTR(a: anytype) @TypeOf(ARY_PTR(RARRAY(a))) {
+    _ = &a;
+    return ARY_PTR(RARRAY(a));
+}
+pub const ARY_SET_LEN = @compileError("unable to translate C expr: unexpected token 'do'");
+// mruby-3.4.0/build/host/include/mruby/array.h:74:9
+pub inline fn ARY_CAPA(a: anytype) @TypeOf(if (ARY_EMBED_P(a) != 0) MRB_ARY_EMBED_LEN_MAX else a.*.as.heap.aux.capa) {
+    _ = &a;
+    return if (ARY_EMBED_P(a) != 0) MRB_ARY_EMBED_LEN_MAX else a.*.as.heap.aux.capa;
+}
+pub const MRB_ARY_SHARED = @as(c_int, 256);
+pub inline fn ARY_SHARED_P(a: anytype) @TypeOf(a.*.flags & MRB_ARY_SHARED) {
+    _ = &a;
+    return a.*.flags & MRB_ARY_SHARED;
+}
+pub const ARY_SET_SHARED_FLAG = @compileError("unable to translate C expr: expected ')' instead got '|='");
+// mruby-3.4.0/build/host/include/mruby/array.h:85:9
+pub const ARY_UNSET_SHARED_FLAG = @compileError("unable to translate C expr: expected ')' instead got '&='");
+// mruby-3.4.0/build/host/include/mruby/array.h:86:9
+pub inline fn mrb_ary_ref(mrb: anytype, ary: anytype, n: anytype) @TypeOf(mrb_ary_entry(ary, n)) {
+    _ = &mrb;
+    _ = &ary;
+    _ = &n;
+    return mrb_ary_entry(ary, n);
+}
 pub const MRUBY_IREP_H = "";
 pub const MRUBY_COMPILE_H = "";
 pub const mrbc_context = mrb_ccontext;
@@ -4281,6 +4392,39 @@ pub const mrb_irep_catch_handler_pack = @compileError("unable to translate macro
 // mruby-3.4.0/build/host/include/mruby/irep.h:133:9
 pub const mrb_irep_catch_handler_unpack = @compileError("unable to translate macro: undefined identifier `bin_to_uint32`");
 // mruby-3.4.0/build/host/include/mruby/irep.h:134:9
+pub const MRUBY_HASH_H = "";
+pub inline fn mrb_hash_ptr(v: anytype) [*c]struct_RHash {
+    _ = &v;
+    return @import("std").zig.c_translation.cast([*c]struct_RHash, mrb_ptr(v));
+}
+pub inline fn mrb_hash_value(p: anytype) @TypeOf(mrb_obj_value(@import("std").zig.c_translation.cast(?*anyopaque, p))) {
+    _ = &p;
+    return mrb_obj_value(@import("std").zig.c_translation.cast(?*anyopaque, p));
+}
+pub inline fn RHASH(hash: anytype) [*c]struct_RHash {
+    _ = &hash;
+    return @import("std").zig.c_translation.cast([*c]struct_RHash, mrb_ptr(hash));
+}
+pub const MRB_HASH_IB_BIT_BIT = @as(c_int, 5);
+pub const MRB_HASH_AR_EA_CAPA_BIT = @as(c_int, 5);
+pub const MRB_HASH_IB_BIT_SHIFT = @as(c_int, 0);
+pub const MRB_HASH_AR_EA_CAPA_SHIFT = @as(c_int, 0);
+pub const MRB_HASH_AR_EA_N_USED_SHIFT = MRB_HASH_AR_EA_CAPA_BIT;
+pub const MRB_HASH_SIZE_FLAGS_SHIFT = MRB_HASH_AR_EA_CAPA_BIT * @as(c_int, 2);
+pub const MRB_HASH_IB_BIT_MASK = (@as(c_int, 1) << MRB_HASH_IB_BIT_BIT) - @as(c_int, 1);
+pub const MRB_HASH_AR_EA_CAPA_MASK = (@as(c_int, 1) << MRB_HASH_AR_EA_CAPA_BIT) - @as(c_int, 1);
+pub const MRB_HASH_AR_EA_N_USED_MASK = MRB_HASH_AR_EA_CAPA_MASK << MRB_HASH_AR_EA_N_USED_SHIFT;
+pub const MRB_HASH_DEFAULT = @as(c_int, 1) << (MRB_HASH_SIZE_FLAGS_SHIFT + @as(c_int, 0));
+pub const MRB_HASH_PROC_DEFAULT = @as(c_int, 1) << (MRB_HASH_SIZE_FLAGS_SHIFT + @as(c_int, 1));
+pub const MRB_HASH_HT = @as(c_int, 1) << (MRB_HASH_SIZE_FLAGS_SHIFT + @as(c_int, 2));
+pub inline fn MRB_RHASH_DEFAULT_P(hash: anytype) @TypeOf(RHASH(hash).*.flags & MRB_HASH_DEFAULT) {
+    _ = &hash;
+    return RHASH(hash).*.flags & MRB_HASH_DEFAULT;
+}
+pub inline fn MRB_RHASH_PROCDEFAULT_P(hash: anytype) @TypeOf(RHASH(hash).*.flags & MRB_HASH_PROC_DEFAULT) {
+    _ = &hash;
+    return RHASH(hash).*.flags & MRB_HASH_PROC_DEFAULT;
+}
 pub const MRUBY_PROC_H = "";
 pub const _STRING_H = @as(c_int, 1);
 pub const _BITS_TYPES_LOCALE_T_H = @as(c_int, 1);
