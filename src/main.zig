@@ -49,16 +49,27 @@ const SimpleEndpoint = struct {
 
                 const app = c.mrb_module_get(m, "App");
                 const mrb_result = c.mrb_funcall(m, c.mrb_obj_value(app), "entry_point", 1, env);
+                _ = c.mrb_funcall(m, c.mrb_top_self(m), "puts", 1, mrb_result);
 
-                const body = c.mrb_ary_ref(m, mrb_result, 2);
-                const cstr: [*:0]const u8 = c.mrb_str_to_cstr(m, body);
-                const len: usize = std.mem.len(cstr);
-                const out = try arena.alloc(u8, len);
-                defer arena.free(out);
-                @memcpy(out, cstr[0..len]);
+                const array_class = c.mrb_class_get(m, "Array");
+                const string_class = c.mrb_class_get(m, "String");
+                if (c.mrb_obj_is_kind_of(m, mrb_result, array_class)) {
+                    const body = c.mrb_ary_ref(m, mrb_result, 2);
+                    var cstr: [*:0]const u8 = undefined;
+                    if (c.mrb_obj_is_kind_of(m, body, array_class)) {
+                        const data = c.mrb_ary_ref(m, body, 0);
+                        cstr = c.mrb_str_to_cstr(m, data);
+                    } else if (c.mrb_obj_is_kind_of(m, body, string_class)) {
+                        cstr = c.mrb_str_to_cstr(m, body);
+                    }
+                    const len: usize = std.mem.len(cstr);
+                    const out = try arena.alloc(u8, len);
+                    defer arena.free(out);
+                    @memcpy(out, cstr[0..len]);
 
-                try r.sendBody(out);
-                return;
+                    try r.sendBody(out);
+                    return;
+                }
             }
         }
 

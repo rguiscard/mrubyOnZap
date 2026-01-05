@@ -1,11 +1,11 @@
 puts "Hello World from mruby"
 
 module App
-  def self.entry_point(env)
-    path = env["PATH_INFO"]
-    method = env["REQUEST_METHOD"]
+  @@app = Shelf::Builder.app do
+    run ->(env) { [200, { 'content-type' => 'text/plain' }, ['A barebones shelf app']] }
+  end
 
-    s = "<html><head></head><body><p>Hello from mruby</p><p>#{method}: #{path}</p></body></html>"
-    [200, {}, s]
+  def self.entry_point(env)
+    return @@app.call(env)
   end
 end

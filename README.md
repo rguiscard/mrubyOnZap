@@ -33,7 +33,12 @@ Replace the `src/main.zig` with [app_basic](https://github.com/zigzap/zap/blob/m
 
 Follows [mrubyOnZig](https://github.com/rguiscard/mrubyOnZig). It may take a few efforts to adapt. Here are hints:
 
-- You need to build mruby with rake to generate `libmruby.a` and `mruby.h` under `build/host/` directory.
+- You need to build mruby with rake to generate `libmruby.a` and `mruby.h` under `build/host/` directory. Remember to use `zig cc` instead of default C compiler. It will eliminate some errors on C macros.
+
+```
+$ CC='zig cc' rake test all
+```
+
 - Create `mruby_headers.h` and use `zig translate-c` to convert it to a zig file. Replace the `mrb_gc` with `u128` to avoid opaque error.
 - Modify `src/root.zig` to include translated mruby headers.
 - Automatically generate mruby bytecode from `main.rb`
@@ -150,4 +155,80 @@ module App
     [200, {}, s]
   end
 end
+```
+
+### mruby-shelf
+
+You can consider to use [mruby-shelf](https://github.com/katzer/mruby-shelf/) as a simple web framework. Here is a working example.
+
+First, add `mruby-shelf` into mruby by adding the following line to `mrbgems/default.gembox` (or your own genbox):
+
+```
+  conf.gem :github => "katzer/mruby-shelf"
+```
+
+Run `rake test all` and it should show errors on missing `mruby-print`. 
+Current version of mruby-shelf does not fully support mruby 0.3.4, therefore, comment out `mruby-print` from your local repository at `build/repos/host/mruby-shelf/mrbgem.rake`
+
+```
+#  spec.add_test_dependency 'mruby-print',   core: 'mruby-print'
+```
+
+Run `rake test all` again. The test will fail, but the libmruby.a will be correctly built.
+
+On ruby side:
+
+```
+module App
+  @@app = Shelf::Builder.app do
+    run ->(env) { [200, { 'content-type' => 'text/plain' }, ['A barebones shelf app']] }
+  end
+
+  def self.entry_point(env)
+    return @@app.call(env)
+  end
+end
+```
+
+On zig side
+
+```
+        r.setStatus(.ok);
+
+        if (context.mrb) |m| {
+            if (r.path) |path| {
+                const env = c.mrb_hash_new(m);
+                _ = c.mrb_hash_set(m, env, zigStringToRuby(m, "PATH_INFO"),
+                                           zigStringToRuby(m, path));
+                _ = c.mrb_hash_set(m, env, zigStringToRuby(m, "REQUEST_METHOD"),
+                                           zigStringToRuby(m, "get"));
+
+                const app = c.mrb_module_get(m, "App");
+                const mrb_result = c.mrb_funcall(m, c.mrb_obj_value(app), "entry_point", 1, env);
+                // _ = c.mrb_funcall(m, c.mrb_top_self(m), "puts", 1, mrb_result);
+
+                const array_class = c.mrb_class_get(m, "Array");
+                const string_class = c.mrb_class_get(m, "String");
+                if (c.mrb_obj_is_kind_of(m, mrb_result, array_class)) {
+                    const body = c.mrb_ary_ref(m, mrb_result, 2);
+                    var cstr: [*:0]const u8 = undefined;
+                    if (c.mrb_obj_is_kind_of(m, body, array_class)) {
+                        const data = c.mrb_ary_ref(m, body, 0);
+                        cstr = c.mrb_str_to_cstr(m, data);
+                    } else if (c.mrb_obj_is_kind_of(m, body, string_class)) {
+                        cstr = c.mrb_str_to_cstr(m, body);
+                    } else {
+                        // error: not string or array of strings
+                        return;
+                    }
+                    const len: usize = std.mem.len(cstr);
+                    const out = try arena.alloc(u8, len);
+                    defer arena.free(out);
+                    @memcpy(out, cstr[0..len]);
+
+                    try r.sendBody(out);
+                    return;
+                }
+            }
+        }
 ```
