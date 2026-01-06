@@ -201,7 +201,7 @@ On zig side
                 _ = c.mrb_hash_set(m, env, zigStringToRuby(m, "PATH_INFO"),
                                            zigStringToRuby(m, path));
                 _ = c.mrb_hash_set(m, env, zigStringToRuby(m, "REQUEST_METHOD"),
-                                           zigStringToRuby(m, "get"));
+                                           zigStringToRuby(m, "GET"));
 
                 const app = c.mrb_module_get(m, "App");
                 const mrb_result = c.mrb_funcall(m, c.mrb_obj_value(app), "entry_point", 1, env);
