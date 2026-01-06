@@ -47,8 +47,11 @@ const SimpleEndpoint = struct {
                 _ = c.mrb_hash_set(m, env, zigStringToRuby(m, "REQUEST_METHOD"),
                                            zigStringToRuby(m, "GET"));
 
-                const app = c.mrb_module_get(m, "App");
-                const mrb_result = c.mrb_funcall(m, c.mrb_obj_value(app), "entry_point", 1, env);
+                const mod = c.mrb_module_get(m, "Zap");
+                const cls = c.mrb_class_get_under(m, mod, "App");
+                const app = c.mrb_obj_new(m, cls, 0, null);
+//                const mrb_result = c.mrb_funcall(m, c.mrb_obj_value(cls), "entry_point", 1, env);
+                const mrb_result = c.mrb_funcall(m, app, "entry_point", 1, env);
                 _ = c.mrb_funcall(m, c.mrb_top_self(m), "puts", 1, mrb_result);
 
                 const array_class = c.mrb_class_get(m, "Array");
