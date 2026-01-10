@@ -89,13 +89,23 @@ module Zap
           }
         end
 
-        # this defaults to default_app above
-        get('/test/say/{word}', {to: "zap/hello#say"})
+        # this defaults to default_app above, using Rails-like route pattern
+        get '/test/say/{word}', to: "zap/hello#say"
+
+        get '/doc/index', to: "doc#index"
       end
     end
 
     def entry_point(env)
       return app.call(env)
     end
+  end
+end
+
+class DocController < Zap::Controller
+  def index
+    render <<EOF
+This is a blog index
+EOF
   end
 end

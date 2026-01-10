@@ -140,10 +140,12 @@ pub fn main() !void {
     defer App.deinit();
 
     // create the endpoints
+    var doc = SimpleEndpoint.init("/doc", "some endpoint specific data");
     var my_endpoint = SimpleEndpoint.init("/test", "some endpoint specific data");
     var stop_endpoint: StopEndpoint = .{ .path = "/stop" };
     //
     // register the endpoints with the App
+    try App.register(&doc);
     try App.register(&my_endpoint);
     try App.register(&stop_endpoint);
 
