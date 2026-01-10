@@ -19,22 +19,15 @@ module Zap
     def world
       render "OK from HelloController#world"
     end
+
+    def say
+      render "say #{env['shelf.request.query_hash'][:word]} from HelloController"
+    end
   end
 
   class Router
     def initialize
-#      @routes = []
     end
-
-#    def get(path, to:)
-#      controller, action = to.split("#")
-#      @routes << {
-#        method: "GET",
-#        path: path,
-#        controller: controller,
-#        action: action
-#      }
-#    end
 
     def call(env)
       req_method = env["REQUEST_METHOD"]
@@ -45,18 +38,7 @@ module Zap
         return dispatch({controller: controller, action: action}, env)
       end
 
-#      route = @routes.find do |r|
-#        r[:method] == req_method && r[:path] == path_info
-#      end
-#
-#      if env['controller'] != nil && env['action'] != nil
-#        route[:controller] = env['controller']
-#        route[:action] = env['action']
-#      end
-
       return not_found unless route
-
-#      dispatch(route, env)
     end
 
     def dispatch(route, env)
@@ -94,14 +76,11 @@ module Zap
 
   class App
     def app
-      return Shelf::Builder.app do
-#        router = Router.new
-
-#        router.get "/test/ok", to: "zap/hello#world"
-
-#        run router
-        
-#        map('/test/users/{id}') { run ->(env) { [200, {}, [env['shelf.request.query_hash'][:id]]] } }
+#      default_app = lambda { |env| [200, { "Content-Type" => "text/plain" }, ["default app"]] }
+      default_app = Router.new
+      return Shelf::Builder.app(default_app) do
+        # mruby-shelf typical use
+        map('/test/users/{id}') { run ->(env) { [200, {}, [env['shelf.request.query_hash'][:id]]] } }
 
         # use controller controller#action
         get('/test/ok', {to: "zap/hello#world"}) do
@@ -109,12 +88,14 @@ module Zap
             Router.new.call(env)
           }
         end
+
+        # this defaults to default_app above
+        get('/test/say/{word}', {to: "zap/hello#say"})
       end
     end
 
     def entry_point(env)
       return app.call(env)
-#      [200, {}, "ok"]
     end
   end
 end
