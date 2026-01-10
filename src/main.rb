@@ -23,30 +23,40 @@ module Zap
 
   class Router
     def initialize
-      @routes = []
+#      @routes = []
     end
 
-    def get(path, to:)
-      controller, action = to.split("#")
-      @routes << {
-        method: "GET",
-        path: path,
-        controller: controller,
-        action: action
-      }
-    end
+#    def get(path, to:)
+#      controller, action = to.split("#")
+#      @routes << {
+#        method: "GET",
+#        path: path,
+#        controller: controller,
+#        action: action
+#      }
+#    end
 
     def call(env)
       req_method = env["REQUEST_METHOD"]
       path_info  = env["PATH_INFO"]
 
-      route = @routes.find do |r|
-        r[:method] == req_method && r[:path] == path_info
+      if (to=env['shelf.r3.data'][:to]) != nil
+        controller, action = to.split("#")
+        return dispatch({controller: controller, action: action}, env)
       end
+
+#      route = @routes.find do |r|
+#        r[:method] == req_method && r[:path] == path_info
+#      end
+#
+#      if env['controller'] != nil && env['action'] != nil
+#        route[:controller] = env['controller']
+#        route[:action] = env['action']
+#      end
 
       return not_found unless route
 
-      dispatch(route, env)
+#      dispatch(route, env)
     end
 
     def dispatch(route, env)
@@ -85,15 +95,20 @@ module Zap
   class App
     def app
       return Shelf::Builder.app do
-        router = Router.new
+#        router = Router.new
 
-        router.get "/test/ok", to: "zap/hello#world"
+#        router.get "/test/ok", to: "zap/hello#world"
 
-        run router
+#        run router
+        
 #        map('/test/users/{id}') { run ->(env) { [200, {}, [env['shelf.request.query_hash'][:id]]] } }
-#        get('/test') do
-#          run ->(env) { [200, {}, ['test run']] }
-#        end
+
+        # use controller controller#action
+        get('/test/ok', {to: "zap/hello#world"}) do
+          run ->(env) {
+            Router.new.call(env)
+          }
+        end
       end
     end
 
