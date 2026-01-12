@@ -109,7 +109,7 @@ pub fn build(b: *std.Build) void {
 
     // Create gzipped assets
     inline for (assets) |asset| {
-        const path, const name, const to_gzip = asset;
+        const path, const name, _, const to_gzip = asset;
         if (to_gzip) {
             const gzip = b.addSystemCommand(&.{
                 "gzip",

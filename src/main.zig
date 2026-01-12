@@ -8,20 +8,20 @@ const Allocator = std.mem.Allocator;
 // The global Application Context
 const MContext = struct {
     mrb: ?*c.mrb_state,
+    assetFiles: [assets.len]struct{[]const u8, []const u8, bool, []const u8},
 
     pub fn init() MContext {
         return .{
             .mrb = null,
+            .assetFiles = undefined,
         };
     }
 };
 
 // need to match asset name in src/assets.zig
-const simple_css = @embedFile("simple_css");
+const assets = @import("assets.zig").assets;
 
 const AssetsEndpoint = struct {
-
-    // zap.App.Endpoint Interface part
     path: []const u8,
     error_strategy: zap.Endpoint.ErrorStrategy = .log_to_response,
 
@@ -37,15 +37,19 @@ const AssetsEndpoint = struct {
 
     pub fn get(e: *AssetsEndpoint, arena: Allocator, context: *MContext, r: zap.Request) !void {
         _ = e;
-        _ = context;
         _ = arena;
         if (r.path) |path| {
-            if (std.mem.eql(u8, path, "/assets/simple.min.css")) {
-                r.setStatus(.ok);
-                try r.setHeader("content-type", "text/css; charset=utf-8");
-                try r.setHeader("content-encoding", "gzip");
-                try r.sendBody(simple_css);
-                return;
+            for(context.assetFiles) |file| {
+                if (std.mem.eql(u8, path, file[0])) {
+                    r.setStatus(.ok);
+//                    try r.setHeader("content-type", "text; charset=utf-8");
+                    try r.setHeader("content-type", file[1]);
+                    if (file[2] == true) { // gzipped
+                        try r.setHeader("content-encoding", "gzip");
+                    }
+                    try r.sendBody(file[3]);
+                    return;
+                }
             }
         }
         r.setStatus(.not_found);
@@ -170,6 +174,16 @@ pub fn main() !void {
         // defer c.mrb_close(m);
     }
 
+    // build assets
+    var assetFiles:[assets.len]struct{[]const u8, []const u8, bool, []const u8} = undefined;
+    inline for (assets, 0..) |asset, idx| {
+        const path, const name, var mime, const to_gzip = asset;
+        if (mime == null) {
+            mime = "text";
+        }
+        assetFiles[idx] = .{"/"++path, mime.?, to_gzip, @embedFile(name)};
+    }
+    my_context.assetFiles = assetFiles;
 
     // create an App instance
     const App = zap.App.Create(MContext);
@@ -177,13 +191,13 @@ pub fn main() !void {
     defer App.deinit();
 
     // create the endpoints
-    var assets = AssetsEndpoint.init("/assets", "some endpoint specific data");
+    var assets_endpoint = AssetsEndpoint.init("/assets", "some endpoint specific data");
     var doc = SimpleEndpoint.init("/doc", "some endpoint specific data");
     var my_endpoint = SimpleEndpoint.init("/test", "some endpoint specific data");
     var stop_endpoint: StopEndpoint = .{ .path = "/stop" };
     //
     // register the endpoints with the App
-    try App.register(&assets);
+    try App.register(&assets_endpoint);
     try App.register(&doc);
     try App.register(&my_endpoint);
     try App.register(&stop_endpoint);
