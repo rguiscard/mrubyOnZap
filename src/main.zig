@@ -16,6 +16,43 @@ const MContext = struct {
     }
 };
 
+const simple_css = @embedFile("simple_css"); // need to match asset name in src/assets.zig
+
+// A very simple endpoint handling only GET requests
+const AssetsEndpoint = struct {
+
+    // zap.App.Endpoint Interface part
+    path: []const u8,
+    error_strategy: zap.Endpoint.ErrorStrategy = .log_to_response,
+
+    // data specific for this endpoint
+    some_data: []const u8,
+
+    pub fn init(path: []const u8, data: []const u8) AssetsEndpoint {
+        return .{
+            .path = path,
+            .some_data = data,
+        };
+    }
+
+    // handle GET requests
+    pub fn get(e: *AssetsEndpoint, arena: Allocator, context: *MContext, r: zap.Request) !void {
+        _ = e;
+        _ = context;
+        _ = arena;
+        if (r.path) |path| {
+            if (std.mem.eql(u8, path, "/assets/simple.min.css")) {
+                r.setStatus(.ok);
+                try r.sendBody(simple_css);
+                return;
+            }
+        }
+        r.setStatus(.not_found);
+        try r.sendBody("<html><body><h1>404 - File not found</h1></body></html>");
+//        std.Thread.sleep(std.time.ns_per_ms * 300);
+    }
+};
+
 // A very simple endpoint handling only GET requests
 const SimpleEndpoint = struct {
 
@@ -140,11 +177,13 @@ pub fn main() !void {
     defer App.deinit();
 
     // create the endpoints
+    var assets = AssetsEndpoint.init("/assets", "some endpoint specific data");
     var doc = SimpleEndpoint.init("/doc", "some endpoint specific data");
     var my_endpoint = SimpleEndpoint.init("/test", "some endpoint specific data");
     var stop_endpoint: StopEndpoint = .{ .path = "/stop" };
     //
     // register the endpoints with the App
+    try App.register(&assets);
     try App.register(&doc);
     try App.register(&my_endpoint);
     try App.register(&stop_endpoint);

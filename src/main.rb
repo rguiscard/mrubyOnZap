@@ -105,7 +105,15 @@ end
 class DocController < Zap::Controller
   def index
     render <<EOF
-This is a blog index
+<html>
+<head>
+<link rel="stylesheet" href="assets/simple.min.css">
+</head>
+<body>
+<h1>mruby on zap</h1>
+<p>This zig program embeds mruby virtual machine inside zap web server to provide all contents in a single executable, allowing it to be deployed by copying the single file</p>
+</body>
+</html>
 EOF
   end
 end

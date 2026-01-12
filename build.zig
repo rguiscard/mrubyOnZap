@@ -1,4 +1,5 @@
 const std = @import("std");
+const assets = @import("src/assets.zig").assets;
 
 // Although this function looks imperative, it does not perform the build
 // directly and instead it mutates the build graph (`b`) that will be then
@@ -105,6 +106,12 @@ pub fn build(b: *std.Build) void {
     });
 
     exe.root_module.addImport("zap", zap_mod.module("zap"));
+
+    // Create assets
+    for (assets) |asset| {
+        const path, const name = asset;
+        exe.root_module.addAnonymousImport(name, .{ .root_source_file = b.path(path) });
+    }
 
     // This declares intent for the executable to be installed into the
     // install prefix when running `zig build` (i.e. when executing the default
