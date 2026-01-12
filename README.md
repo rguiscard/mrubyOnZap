@@ -232,3 +232,25 @@ On zig side
             }
         }
 ```
+
+### Assets
+
+It supports sending assets through zap web server.
+Add asset files inside `assets/` and add corresponding name in `src/assets.zig".
+These assets will be automatically added into executable as modules.
+You still need to manually use `const asset_name = @embedFile("asset_name")` to get the content.
+You can return the asset like this:
+
+```
+        if (r.path) |path| {
+            if (std.mem.eql(u8, path, "/assets/simple.min.css")) {
+                r.setStatus(.ok);
+                try r.setHeader("content-type", "text/css; charset=utf-8");
+                try r.setHeader("content-encoding", "gzip");
+                try r.sendBody(simple_css);
+                return;
+            }
+        }
+```
+
+This asset is compressed by gzip in `build.zig`. Therefore, it is returned with *gzip* encoding.
