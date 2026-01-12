@@ -107,10 +107,20 @@ pub fn build(b: *std.Build) void {
 
     exe.root_module.addImport("zap", zap_mod.module("zap"));
 
-    // Create assets
-    for (assets) |asset| {
-        const path, const name = asset;
-        exe.root_module.addAnonymousImport(name, .{ .root_source_file = b.path(path) });
+    // Create gzipped assets
+    inline for (assets) |asset| {
+        const path, const name, const to_gzip = asset;
+        if (to_gzip) {
+            const gzip = b.addSystemCommand(&.{
+                "gzip",
+                "-c",
+            });
+            gzip.addFileArg(b.path(path));
+            const gout = gzip.captureStdOut();
+            exe.root_module.addAnonymousImport(name, .{ .root_source_file = gout});
+        } else {
+            exe.root_module.addAnonymousImport(name, .{ .root_source_file = b.path(path)});
+        }
     }
 
     // This declares intent for the executable to be installed into the
