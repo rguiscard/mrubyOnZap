@@ -236,12 +236,14 @@ On zig side
 ### Assets
 
 It supports sending assets through zap web server.
-Add asset files inside `assets/` and add corresponding name in `src/assets.zig".
+Add asset files inside `assets/` and add corresponding name in `src/assets.zig`.
 These assets will be automatically added into executable as modules.
 You still need to manually use `const asset_name = @embedFile("asset_name")` to get the content.
 You can return the asset like this:
 
 ```
+const simple_css = @embedFile("simple_css");
+...
         if (r.path) |path| {
             if (std.mem.eql(u8, path, "/assets/simple.min.css")) {
                 r.setStatus(.ok);
