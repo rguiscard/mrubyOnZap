@@ -2,6 +2,7 @@ puts "Hello World from mruby"
 
 # https://github.com/rbuchberger/objective_elements
 # Author: Robert Buchberger <robert@buchberger.cc>
+# License: MIT
 #
 # This module provides a few helpful classes for generating HTML using simple
 # Ruby. Its goal is to be lightweight, and more focused than the general-purpose
@@ -334,25 +335,87 @@ module Zap
       default_app = Router.new
       return Shelf::Builder.app(default_app) do
         # mruby-shelf typical use
-        map('/test/users/{id}') { run ->(env) { [200, {}, [env['shelf.request.query_hash'][:id]]] } }
+        map('/users/{id}') { run ->(env) { [200, {}, [env['shelf.request.query_hash'][:id]]] } }
 
         # use controller controller#action
-        get('/test/ok', {to: "zap/hello#world"}) do
+        get('/ok', {to: "zap/hello#world"}) do
           run ->(env) {
             Router.new.call(env)
           }
         end
 
         # this defaults to default_app above, using Rails-like route pattern
-        get '/test/say/{word}', to: "zap/hello#say"
+        get '/say/{word}', to: "zap/hello#say"
 
         get '/doc/index', to: "doc#index"
+
+        get '/__console__', to: "console#index"
+        post '/__console__', to: "console#index"
       end
     end
 
     def entry_point(env)
       return app.call(env)
     end
+  end
+end
+
+class ConsoleController < Zap::Controller
+  def index
+    if env["REQUEST_METHOD"] == "POST"
+      code = env["PARAMS"]["code"]
+      if (code != nil)
+        result = eval(code)
+        [404, { "Content-Type" => "text/plain" }, ["Not Found / POST / "+result.to_s]]
+      end
+#      result
+    else
+      render html
+    end
+  end
+
+#  def result
+#    [404, { "Content-Type" => "text/plain" }, ["Not Found / POST"]]
+#  end
+
+  def html
+    html = ObjectiveElements::DoubleTag.new 'html'
+    head = ObjectiveElements::DoubleTag.new 'head'
+    head << ObjectiveElements::SingleTag.new(
+      'link',
+      attributes: { rel: 'stylesheet', href: 'assets/simple.min.css' },
+    )
+    html << head
+
+    body = ObjectiveElements::DoubleTag.new 'body'
+    body.add_content ObjectiveElements::DoubleTag.new(
+      'h1',
+      content: 'Web Console',
+    )
+
+    form = ObjectiveElements::DoubleTag.new(
+      'form',
+      attributes: {method: 'POST'}
+    )
+    textarea = ObjectiveElements::DoubleTag.new(
+      'textarea',
+      attributes: {name: 'code', rows: '10', cols: '80'}
+    )
+    input = ObjectiveElements::SingleTag.new(
+      'input',
+      attributes: {type: 'submit', value: 'eval'}
+    )
+    form << textarea
+    form << input
+    body << form
+
+    body.add_content ObjectiveElements::DoubleTag.new(
+      'pre',
+      attributes: { id: 'result' }
+    )
+
+    html << body
+    html.to_s
   end
 end
 

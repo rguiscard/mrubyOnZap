@@ -16,6 +16,98 @@ const MContext = struct {
             .assetFiles = undefined,
         };
     }
+
+    pub fn unhandledRequest(context: *MContext, arena: Allocator, r: zap.Request) anyerror!void {
+//        const thread_id = std.Thread.getCurrentId();
+
+        r.setStatus(.ok);
+
+        if (context.mrb) |m| {
+            if (r.path) |path| {
+                const method = r.method orelse "GET";
+                const env = c.mrb_hash_new(m);
+                _ = c.mrb_hash_set(m, env, zigStringToRuby(m, "PATH_INFO"),
+                                           zigStringToRuby(m, path));
+                _ = c.mrb_hash_set(m, env, zigStringToRuby(m, "REQUEST_METHOD"),
+                                           zigStringToRuby(m, method));
+
+                if (r.body) |body| {
+                    _ = c.mrb_hash_set(m, env, zigStringToRuby(m, "BODY"),
+                                               zigStringToRuby(m, body));
+                    std.debug.print("Body: {s}\n", .{body});
+                    // check for FORM parameters
+                    r.parseBody() catch |err| {
+                        std.log.err("Parse Body error: {any}. Expected if body is empty", .{err});
+                    };
+
+                    // check for query parameters
+                    r.parseQuery();
+
+                    const param_count = r.getParamCount();
+                    if (param_count > 0) {
+                        const params = c.mrb_hash_new(m);
+
+                        // iterate over all params as strings
+                        var strparams = try r.parametersToOwnedStrList(arena);
+                        defer strparams.deinit();
+                        std.debug.print("\n", .{});
+                        for (strparams.items) |kv| {
+                            std.log.info("ParamStr `{s}` is `{s}`", .{ kv.key, kv.value });
+                            _ = c.mrb_hash_set(m, params, zigStringToRuby(m, kv.key),
+                                                          zigStringToRuby(m, kv.value));
+                        }
+
+                        _ = c.mrb_hash_set(m, env, zigStringToRuby(m, "PARAMS"), params);
+                    }
+                }
+
+                const mod = c.mrb_module_get(m, "Zap");
+                const cls = c.mrb_class_get_under(m, mod, "App");
+                const app = c.mrb_obj_new(m, cls, 0, null);
+//                const mrb_result = c.mrb_funcall(m, c.mrb_obj_value(cls), "entry_point", 1, env);
+                const mrb_result = c.mrb_funcall(m, app, "entry_point", 1, env);
+                _ = c.mrb_funcall(m, c.mrb_top_self(m), "puts", 1, mrb_result);
+
+                const array_class = c.mrb_class_get(m, "Array");
+                const string_class = c.mrb_class_get(m, "String");
+                if (c.mrb_obj_is_kind_of(m, mrb_result, array_class)) {
+                    const body = c.mrb_ary_ref(m, mrb_result, 2);
+                    var cstr: [*:0]const u8 = undefined;
+                    if (c.mrb_obj_is_kind_of(m, body, array_class)) {
+                        const data = c.mrb_ary_ref(m, body, 0);
+                        cstr = c.mrb_str_to_cstr(m, data);
+                    } else if (c.mrb_obj_is_kind_of(m, body, string_class)) {
+                        cstr = c.mrb_str_to_cstr(m, body);
+                    }
+                    const len: usize = std.mem.len(cstr);
+                    const out = try arena.alloc(u8, len);
+                    defer arena.free(out);
+                    @memcpy(out, cstr[0..len]);
+
+                    try r.sendBody(out);
+                    return;
+                }
+            }
+        }
+
+        // look, we use the arena allocator here -> no need to free the response_text later!
+        // and we also just `try` it, not worrying about errors
+        const response_text = try std.fmt.allocPrint(
+            arena,
+            \\<html>
+            \\<body>
+            \\<h1>404 - Request not handle</h1>
+            \\<p>{s} : {s}</p>
+            \\</body>
+            \\</html>
+            \\
+        ,
+            .{r.method orelse "unknown method", r.path orelse "unknown path"},
+        );
+        r.setStatus(.not_found);
+        try r.sendBody(response_text);
+        std.Thread.sleep(std.time.ns_per_ms * 300);
+    }
 };
 
 // need to match asset name in src/assets.zig
@@ -75,47 +167,10 @@ const SimpleEndpoint = struct {
     }
 
     // handle GET requests
-    pub fn get(e: *SimpleEndpoint, arena: Allocator, context: *MContext, r: zap.Request) !void {
+    pub fn get(e: *SimpleEndpoint, arena: Allocator, _: *MContext, r: zap.Request) !void {
         const thread_id = std.Thread.getCurrentId();
 
         r.setStatus(.ok);
-
-        if (context.mrb) |m| {
-            if (r.path) |path| {
-                const env = c.mrb_hash_new(m);
-                _ = c.mrb_hash_set(m, env, zigStringToRuby(m, "PATH_INFO"),
-                                           zigStringToRuby(m, path));
-                _ = c.mrb_hash_set(m, env, zigStringToRuby(m, "REQUEST_METHOD"),
-                                           zigStringToRuby(m, "GET"));
-
-                const mod = c.mrb_module_get(m, "Zap");
-                const cls = c.mrb_class_get_under(m, mod, "App");
-                const app = c.mrb_obj_new(m, cls, 0, null);
-//                const mrb_result = c.mrb_funcall(m, c.mrb_obj_value(cls), "entry_point", 1, env);
-                const mrb_result = c.mrb_funcall(m, app, "entry_point", 1, env);
-                _ = c.mrb_funcall(m, c.mrb_top_self(m), "puts", 1, mrb_result);
-
-                const array_class = c.mrb_class_get(m, "Array");
-                const string_class = c.mrb_class_get(m, "String");
-                if (c.mrb_obj_is_kind_of(m, mrb_result, array_class)) {
-                    const body = c.mrb_ary_ref(m, mrb_result, 2);
-                    var cstr: [*:0]const u8 = undefined;
-                    if (c.mrb_obj_is_kind_of(m, body, array_class)) {
-                        const data = c.mrb_ary_ref(m, body, 0);
-                        cstr = c.mrb_str_to_cstr(m, data);
-                    } else if (c.mrb_obj_is_kind_of(m, body, string_class)) {
-                        cstr = c.mrb_str_to_cstr(m, body);
-                    }
-                    const len: usize = std.mem.len(cstr);
-                    const out = try arena.alloc(u8, len);
-                    defer arena.free(out);
-                    @memcpy(out, cstr[0..len]);
-
-                    try r.sendBody(out);
-                    return;
-                }
-            }
-        }
 
         // look, we use the arena allocator here -> no need to free the response_text later!
         // and we also just `try` it, not worrying about errors
@@ -192,13 +247,11 @@ pub fn main() !void {
 
     // create the endpoints
     var assets_endpoint = AssetsEndpoint.init("/assets", "some endpoint specific data");
-    var doc = SimpleEndpoint.init("/doc", "some endpoint specific data");
     var my_endpoint = SimpleEndpoint.init("/test", "some endpoint specific data");
     var stop_endpoint: StopEndpoint = .{ .path = "/stop" };
     //
     // register the endpoints with the App
     try App.register(&assets_endpoint);
-    try App.register(&doc);
     try App.register(&my_endpoint);
     try App.register(&stop_endpoint);
 
